@@ -1,0 +1,52 @@
+version: '3'
+services:
+  kafka:
+    image: spotify/kafka
+    networks:
+      - net
+    ports:
+      - "2181:2181"
+      - "9092:9092"
+    hostname: kafka
+    environment:
+      - "ADVERTISED_HOST=0.0.0.0"
+      - "ADVERTISED_PORT=9092"
+      - "AUTO_CREATE_TOPICS=true"
+    command: >
+      bash -c
+      "(sleep 15s &&
+      /opt/kafka_2.11-0.10.1.0/bin/kafka-topics.sh
+      --create
+      --zookeeper
+      localhost:2181 --replication-factor 1 --partitions 1
+      --topic PerfilCarLog &) && (supervisord -n)"
+  backend:
+    image: thiagolangoni/perfilcarbackend:latest
+    networks:
+      - net
+    ports:
+      - "8082:8082"
+    environment:
+      - "HOST=kafka"
+      - "PORT=9092"
+      - "JAVA_OPTS=-Xmx256m -Xms256m"
+    depends_on:
+      - kafka
+  backendslack:
+    image: thiagolangoni/perfilcarbackendslack:latest
+    networks:
+      - net
+    ports:
+      - "8081:8081"
+    environment:
+      - "SLACK_WEBHOOK=https://hooks.slack.com/services/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"
+      - "HOST=kafka"
+      - "PORT:9092"
+      - "JAVA_OPTS=-Xmx256m -Xms256m"
+    depends_on:
+      - kafka
+      - backend
+networks:
+  net:
+    external: true
+
